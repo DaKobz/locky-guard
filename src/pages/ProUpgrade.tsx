@@ -182,8 +182,7 @@ const ProUpgrade: React.FC = () => {
       )}
       
       <div className="mt-6 text-sm text-muted-foreground">
-        <p className="mb-2">{t("one.time.payment.info")}</p>
-        <p>{t("support.email")}</p>
+        <p>{t("one.time.payment.info")}</p>
       </div>
     </div>
   );
