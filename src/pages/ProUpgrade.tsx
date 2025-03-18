@@ -186,4 +186,4 @@ const ProUpgrade: React.FC = () => {
   );
 };
 
-export default ProUpgrade; 
+export default ProUpgrade;

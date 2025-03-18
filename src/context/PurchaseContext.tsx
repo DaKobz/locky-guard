@@ -61,8 +61,8 @@ const translations: Record<Language, Record<string, string>> = {
     "one.time.payment.info": "Paiement unique, accès à vie. Aucun abonnement.",
     "support.email": "Support : support@locky.app",
     "continue": "Continuer",
-    "pay.once.browser": "Payer dans le navigateur",
-    "pay.once.stripe": "Payer avec Stripe",
+    "pay.once.browser": "Acheter maintenant (1,99€)",
+    "pay.once.stripe": "Payer avec Stripe (1,99€)",
     "restore.purchases": "Restaurer mes achats",
     "restore.login.required": "Vous devez être connecté pour restaurer vos achats",
     "restore.loading": "Vérification de vos achats en cours...",
@@ -99,8 +99,8 @@ const translations: Record<Language, Record<string, string>> = {
     "one.time.payment.info": "One-time payment, lifetime access. No subscription.",
     "support.email": "Support: support@locky.app",
     "continue": "Continue",
-    "pay.once.browser": "Pay in browser",
-    "pay.once.stripe": "Pay with Stripe",
+    "pay.once.browser": "Buy now ($1.99)",
+    "pay.once.stripe": "Pay with Stripe ($1.99)",
     "restore.purchases": "Restore purchases",
     "restore.login.required": "You must be logged in to restore your purchases",
     "restore.loading": "Checking your purchases...",
@@ -477,4 +477,4 @@ export const usePurchases = () => {
     throw new Error('usePurchases must be used within a PurchaseProvider');
   }
   return context;
-}; 
+};
