@@ -162,7 +162,10 @@ const ProUpgrade: React.FC = () => {
                 disabled={isLoading || purchaseInProgress}
               >
                 <CreditCard className="mr-2 h-4 w-4" />
-                {isNativePlatform ? t("pay.once.browser") : t("pay.once.stripe")}
+                {isNativePlatform ? 
+                  t("pay.once.browser") : 
+                  t("pay.once.stripe")
+                }
               </Button>
               <Button 
                 variant="outline" 
