@@ -1,21 +1,49 @@
+
 import React, { useState } from "react";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePasswords } from "@/context/PasswordContext";
 import { useAuth } from "@/context/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { HardDrive, Download, Shield, Lock } from "lucide-react";
+import { HardDrive, Download, Shield, Lock, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import CryptoJS from 'crypto-js';
+import { useNavigate } from "react-router-dom";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const BackupPage = () => {
   const { t } = useLanguage();
-  const { passwords } = usePasswords();
-  const { masterPassword } = useAuth();
+  const { passwords } = usePasswordContext();
+  const { masterPassword, login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [enteredPassword, setEnteredPassword] = useState("");
+  const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(!masterPassword);
+  const navigate = useNavigate();
+
+  const confirmMasterPassword = async () => {
+    if (!enteredPassword.trim()) {
+      toast.error(t("backup.password_required"));
+      return;
+    }
+
+    const success = await login(enteredPassword);
+    if (success) {
+      setIsConfirmPasswordVisible(false);
+    }
+  };
 
   const handleLocalBackup = () => {
-    if (!masterPassword) {
+    if (!masterPassword && !isConfirmPasswordVisible) {
+      setIsConfirmPasswordVisible(true);
+      toast.error(t("backup.master_password_required"));
+      return;
+    }
+
+    // Use the confirmed password from login or the existing masterPassword
+    const passwordToUse = masterPassword;
+    
+    if (!passwordToUse) {
       toast.error(t("backup.master_password_required"));
       return;
     }
@@ -26,7 +54,7 @@ const BackupPage = () => {
       const data = JSON.stringify(passwords);
       
       // Chiffrer les données avec le mot de passe maître comme clé
-      const encryptedData = CryptoJS.AES.encrypt(data, masterPassword).toString();
+      const encryptedData = CryptoJS.AES.encrypt(data, passwordToUse).toString();
       
       // Créer un objet Blob avec les données chiffrées
       const blob = new Blob([encryptedData], { type: "application/octet-stream" });
@@ -82,7 +110,16 @@ const BackupPage = () => {
   };
 
   const handleLocalRestore = () => {
-    if (!masterPassword) {
+    if (!masterPassword && !isConfirmPasswordVisible) {
+      setIsConfirmPasswordVisible(true);
+      toast.error(t("backup.master_password_required"));
+      return;
+    }
+
+    // Use the confirmed password from login or the existing masterPassword
+    const passwordToUse = masterPassword;
+    
+    if (!passwordToUse) {
       toast.error(t("backup.master_password_required"));
       return;
     }
@@ -105,7 +142,7 @@ const BackupPage = () => {
           
           try {
             // Tenter de déchiffrer avec le mot de passe maître
-            const decryptedData = CryptoJS.AES.decrypt(encryptedData, masterPassword).toString(CryptoJS.enc.Utf8);
+            const decryptedData = CryptoJS.AES.decrypt(encryptedData, passwordToUse).toString(CryptoJS.enc.Utf8);
             
             if (!decryptedData) {
               throw new Error("Decryption failed");
@@ -150,7 +187,7 @@ const BackupPage = () => {
               
               try {
                 // Tenter de déchiffrer avec le mot de passe maître
-                const decryptedData = CryptoJS.AES.decrypt(encryptedData, masterPassword).toString(CryptoJS.enc.Utf8);
+                const decryptedData = CryptoJS.AES.decrypt(encryptedData, passwordToUse).toString(CryptoJS.enc.Utf8);
                 
                 if (!decryptedData) {
                   throw new Error("Decryption failed");
@@ -188,68 +225,114 @@ const BackupPage = () => {
 
   return (
     <div className="container mx-auto p-4 max-w-4xl">
-      <h1 className="text-2xl font-bold mb-6">{t("backup")}</h1>
-      
-      <div className="grid gap-6">
-        {/* Local Backup */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <HardDrive className="h-5 w-5" />
-              {t("backup.local.title")}
-            </CardTitle>
-            <CardDescription>{t("backup.local.description")}</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col sm:flex-row gap-4">
-            <Button 
-              onClick={handleLocalBackup}
-              disabled={isLoading}
-              className="flex-1"
-            >
-              <HardDrive className="mr-2 h-4 w-4" />
-              {t("backup.local")}
-            </Button>
-            
-            <Button 
-              onClick={handleLocalRestore}
-              disabled={isLoading}
-              variant="outline"
-              className="flex-1"
-            >
-              <Download className="mr-2 h-4 w-4" />
-              {t("restore.local")}
-            </Button>
-          </CardContent>
-        </Card>
-        
-        {/* Security Note */}
-        <Card className="bg-muted/50">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-4">
-              <Shield className="h-10 w-10 text-primary flex-shrink-0" />
-              <div>
-                <h3 className="font-medium mb-2">{t("security.note")}</h3>
-                <p className="text-sm text-muted-foreground">{t("security.backup.description")}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        {/* Encryption Note */}
-        <Card className="bg-primary/5">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-4">
-              <Lock className="h-10 w-10 text-primary flex-shrink-0" />
-              <div>
-                <h3 className="font-medium mb-2">{t("encryption.note")}</h3>
-                <p className="text-sm text-muted-foreground">{t("encryption.backup.description")}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="flex justify-between items-center mb-6">
+        <Button variant="ghost" onClick={() => navigate(-1)} className="p-0 h-auto">
+          <ArrowLeft className="h-5 w-5 mr-2" />
+          {t("back")}
+        </Button>
+        <h1 className="text-2xl font-bold">{t("backup")}</h1>
+        <div className="w-10"></div> {/* Spacer for alignment */}
       </div>
+      
+      {/* Ad Banner Placeholder */}
+      <div className="w-full h-[50px] bg-muted/20 flex items-center justify-center mb-6 rounded-md">
+        <span className="text-xs text-muted-foreground">Ad Banner Placeholder (320x50)</span>
+      </div>
+      
+      {isConfirmPasswordVisible ? (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>{t("backup.confirm_password")}</CardTitle>
+            <CardDescription>{t("backup.confirm_password_description")}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="masterPassword">{t("main.password")}</Label>
+                <Input 
+                  id="masterPassword" 
+                  type="password" 
+                  value={enteredPassword}
+                  onChange={(e) => setEnteredPassword(e.target.value)}
+                  placeholder={t("main.password")}
+                />
+              </div>
+              <Button 
+                onClick={confirmMasterPassword}
+                disabled={isLoading || !enteredPassword}
+              >
+                {isLoading ? t("confirming") : t("confirm")}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-6">
+          {/* Local Backup */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <HardDrive className="h-5 w-5" />
+                {t("backup.local.title")}
+              </CardTitle>
+              <CardDescription>{t("backup.local.description")}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col sm:flex-row gap-4">
+              <Button 
+                onClick={handleLocalBackup}
+                disabled={isLoading}
+                className="flex-1"
+              >
+                <HardDrive className="mr-2 h-4 w-4" />
+                {t("backup.local")}
+              </Button>
+              
+              <Button 
+                onClick={handleLocalRestore}
+                disabled={isLoading}
+                variant="outline"
+                className="flex-1"
+              >
+                <Download className="mr-2 h-4 w-4" />
+                {t("restore.local")}
+              </Button>
+            </CardContent>
+          </Card>
+          
+          {/* Security Note */}
+          <Card className="bg-muted/50">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-4">
+                <Shield className="h-10 w-10 text-primary flex-shrink-0" />
+                <div>
+                  <h3 className="font-medium mb-2">{t("security.note")}</h3>
+                  <p className="text-sm text-muted-foreground">{t("security.backup.description")}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          {/* Encryption Note */}
+          <Card className="bg-primary/5">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-4">
+                <Lock className="h-10 w-10 text-primary flex-shrink-0" />
+                <div>
+                  <h3 className="font-medium mb-2">{t("encryption.note")}</h3>
+                  <p className="text-sm text-muted-foreground">{t("encryption.backup.description")}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
+};
+
+const usePasswordContext = () => {
+  // Fix for the typo in the import; usePasswords is the correct hook
+  return usePasswords();
 };
 
 export default BackupPage;

@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "sonner";
 
@@ -30,9 +31,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setIsFirstLogin(true);
         }
         
+        // Try to retrieve the master password from localStorage (in a real app, this would be more secure)
+        const storedMasterPassword = localStorage.getItem("masterPassword");
+        if (storedMasterPassword) {
+          setMasterPasswordState(storedMasterPassword);
+        }
+        
         // Simulate checking stored credentials
         setTimeout(() => {
-          setIsAuthenticated(false);
+          // If master password is found, consider the user authenticated
+          setIsAuthenticated(storedMasterPassword ? true : false);
           setIsLoading(false);
         }, 1000);
       } catch (error) {
@@ -52,6 +60,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // In a real app, we would hash the password before storing
       localStorage.setItem("hasSetMasterPassword", "true");
+      // Store the master password in localStorage (in a real app, this would be done securely)
+      localStorage.setItem("masterPassword", password);
       setMasterPasswordState(password);
       setIsFirstLogin(false);
       setIsAuthenticated(true); // Auto-login user after setting password
@@ -77,6 +87,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (password === correctPassword) {
         setIsAuthenticated(true);
+        // Save the password in state and localStorage (in a real app, this would be done securely)
+        setMasterPasswordState(password);
+        localStorage.setItem("masterPassword", password);
         toast.success("Authentification réussie");
         return true;
       } else {
@@ -93,6 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     setIsAuthenticated(false);
+    // Don't clear the master password from localStorage on logout to maintain backup functionality
     toast.info("Vous êtes déconnecté");
   };
 

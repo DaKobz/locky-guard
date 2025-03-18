@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePasswords } from "@/context/PasswordContext";
+import { useAuth } from "@/context/AuthContext";
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -12,13 +13,22 @@ import {
 import { Button } from "@/components/ui/button";
 import { Save, Download, HardDrive, CloudUpload } from "lucide-react";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 const BackupMenu: React.FC = () => {
   const { t } = useLanguage();
   const { passwords } = usePasswords();
+  const { masterPassword } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleLocalBackup = () => {
+    if (!masterPassword) {
+      toast.error(t("backup.master_password_required"));
+      navigate("/backup"); // Redirect to the full backup page for better handling
+      return;
+    }
+
     setIsLoading(true);
     try {
       // Create a JSON string and encrypt it (mock encryption)
@@ -47,6 +57,12 @@ const BackupMenu: React.FC = () => {
   };
 
   const handleGoogleDriveBackup = () => {
+    if (!masterPassword) {
+      toast.error(t("backup.master_password_required"));
+      navigate("/backup"); // Redirect to the full backup page for better handling
+      return;
+    }
+
     setIsLoading(true);
     // Mock Google Drive backup
     setTimeout(() => {
@@ -56,6 +72,12 @@ const BackupMenu: React.FC = () => {
   };
 
   const handleLocalRestore = () => {
+    if (!masterPassword) {
+      toast.error(t("backup.master_password_required"));
+      navigate("/backup"); // Redirect to the full backup page for better handling
+      return;
+    }
+    
     const input = document.createElement("input");
     input.type = "file";
     input.accept = ".pwe";
@@ -97,6 +119,12 @@ const BackupMenu: React.FC = () => {
   };
 
   const handleGoogleDriveRestore = () => {
+    if (!masterPassword) {
+      toast.error(t("backup.master_password_required"));
+      navigate("/backup"); // Redirect to the full backup page for better handling
+      return;
+    }
+    
     setIsLoading(true);
     // Mock Google Drive restore
     setTimeout(() => {
