@@ -106,6 +106,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     setIsAuthenticated(false);
+    // Also clear the master password state to ensure the login page is shown
+    setMasterPasswordState(null);
     // Don't clear the master password from localStorage on logout to maintain backup functionality
     toast.info("Vous êtes déconnecté");
   };
