@@ -237,11 +237,6 @@ const BackupPage = () => {
         <div className="w-10"></div> {/* Spacer for alignment */}
       </div>
       
-      {/* Ad Banner Placeholder */}
-      <div className="w-full h-[50px] bg-muted/20 flex items-center justify-center mb-6 rounded-md">
-        <span className="text-xs text-muted-foreground">Ad Banner Placeholder (320x50)</span>
-      </div>
-      
       {isConfirmPasswordVisible ? (
         <Card className="mb-6">
           <CardHeader>

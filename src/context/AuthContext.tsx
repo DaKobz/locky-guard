@@ -18,7 +18,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isFirstLogin, setIsFirstLogin] = useState<boolean>(false);
-  const [masterPassword, setMasterPasswordState] = useState<string | null>(null);
+  const [masterPasswordState, setMasterPasswordState] = useState<string | null>(null);
 
   // In a real app, we would check for a stored token or session
   useEffect(() => {
@@ -82,8 +82,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1500));
       
-      // For demo, use the set master password if available, otherwise fall back to the demo password
-      const correctPassword = masterPassword || "locky123";
+      // Compare with the stored master password
+      const correctPassword = masterPasswordState;
       
       if (password === correctPassword) {
         setIsAuthenticated(true);
@@ -116,7 +116,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAuthenticated,
         isLoading,
         isFirstLogin,
-        masterPassword,
+        masterPassword: masterPasswordState,
         login,
         logout,
         setMasterPassword,
