@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePurchases } from "@/context/PurchaseContext";
@@ -81,10 +82,6 @@ const ProUpgrade: React.FC = () => {
                 <Check className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                 <p>{t("pro.feature.backup")}</p>
               </div>
-              <div className="flex items-start gap-2">
-                <Check className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                <p>{t("pro.feature.sync")}</p>
-              </div>
             </div>
           </CardContent>
           <CardFooter>
@@ -136,10 +133,6 @@ const ProUpgrade: React.FC = () => {
                 <div className="flex items-start gap-2">
                   <Check className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                   <p>{t("pro.feature.backup")}</p>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Check className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                  <p>{t("pro.feature.sync")}</p>
                 </div>
                 
                 <div className="mt-6 py-3 border-t border-b">

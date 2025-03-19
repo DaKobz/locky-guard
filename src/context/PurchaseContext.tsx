@@ -4,21 +4,17 @@ import { toast } from 'sonner';
 import { Capacitor } from '@capacitor/core';
 import { useLanguage, Language } from '@/context/LanguageContext';
 
-// URL de votre backend Stripe Firebase
 const STRIPE_API_URL = 'https://us-central1-VOTRE_PROJET_ID.cloudfunctions.net/createCheckout';
 const STRIPE_VERIFY_URL = 'https://us-central1-VOTRE_PROJET_ID.cloudfunctions.net/checkSubscription';
 const STRIPE_PAYMENT_URL = 'https://us-central1-VOTRE_PROJET_ID.cloudfunctions.net/checkPayment';
 
-// Désactiver temporairement les appels API si le backend n'est pas encore configuré
 const BACKEND_ENABLED = false;
 
-// Prix ponctuel
-const PRICE_AMOUNT = 199; // 1.99€ en centimes
+const PRICE_AMOUNT = 199;
 const PRICE_DISPLAY = '1,99 €';
 const PRICE_DISPLAY_EN = '$1.99';
 const PRODUCT_ID = 'prod_RxsrL8CqlOy08Z';
 
-// Événements personnalisés pour la communication entre contextes
 const PASSWORD_LIMIT_EVENT = 'passwordLimitUpdate';
 const PASSWORD_COUNT_EVENT = 'passwordCountUpdate';
 
@@ -48,7 +44,6 @@ const translations: Record<Language, Record<string, string>> = {
     "pro.active.subtitle": "Vous profitez de toutes les fonctionnalités",
     "pro.feature.unlimited": "Mots de passe illimités",
     "pro.feature.backup": "Sauvegarde et restauration",
-    "pro.feature.sync": "Synchronisation entre appareils",
     "free.plan.title": "Version Gratuite",
     "free.plan.subtitle": "Fonctionnalités de base",
     "free.plan.remaining": "{{count}} mots de passe restants",
@@ -59,7 +54,6 @@ const translations: Record<Language, Record<string, string>> = {
     "price": "Prix",
     "payment.one.time.info": "Paiement unique, accès à vie",
     "one.time.payment.info": "Paiement unique, accès à vie. Aucun abonnement.",
-    "support.email": "Support : support@locky.app",
     "continue": "Continuer",
     "pay.once.browser": "Acheter maintenant (1,99€)",
     "pay.once.stripe": "Payer avec Stripe (1,99€)",
@@ -77,7 +71,8 @@ const translations: Record<Language, Record<string, string>> = {
     "success.restored": "Pro restauré",
     "pro.inactive": "Pro inactif",
     "free": "Version gratuite",
-    "upgrade.required": "Mise à niveau requise"
+    "upgrade.required": "Mise à niveau requise",
+    "pro.upgrade.already": "Vous bénéficiez déjà de toutes les fonctionnalités"
   },
   en: {
     "pro.upgrade.title": "Upgrade to Locky Pro",
@@ -86,7 +81,6 @@ const translations: Record<Language, Record<string, string>> = {
     "pro.active.subtitle": "You're enjoying all premium features",
     "pro.feature.unlimited": "Unlimited passwords",
     "pro.feature.backup": "Backup & restore",
-    "pro.feature.sync": "Cross-device synchronization",
     "free.plan.title": "Free Version",
     "free.plan.subtitle": "Basic features",
     "free.plan.remaining": "{{count}} passwords remaining",
@@ -97,7 +91,6 @@ const translations: Record<Language, Record<string, string>> = {
     "price": "Price",
     "payment.one.time.info": "One-time payment, lifetime access",
     "one.time.payment.info": "One-time payment, lifetime access. No subscription.",
-    "support.email": "Support: support@locky.app",
     "continue": "Continue",
     "pay.once.browser": "Buy now ($1.99)",
     "pay.once.stripe": "Pay with Stripe ($1.99)",
@@ -119,11 +112,11 @@ const translations: Record<Language, Record<string, string>> = {
     "purchase.login.required": "You must be logged in to make this purchase",
     "purchase.success": "Purchase successful! You now have unlimited access.",
     "purchase.error": "An error occurred while processing your payment.",
-    "purchase.browser.redirect": "Payment will open in your browser. Return to the app once completed."
+    "purchase.browser.redirect": "Payment will open in your browser. Return to the app once completed.",
+    "pro.upgrade.already": "You already have access to all features"
   }
 };
 
-// Ajouter des logs pour le debug
 console.log("PurchaseContext: Initialisation du contexte");
 
 export const PurchaseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -140,7 +133,6 @@ export const PurchaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     currencyCode: language === 'en' ? 'USD' : 'EUR'
   });
 
-  // Fonctions de limite de mots de passe
   const getPasswordLimit = () => {
     return isProUser ? Infinity : 3;
   };
@@ -149,7 +141,6 @@ export const PurchaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return isProUser;
   };
 
-  // Émettre les limites de mots de passe lors des changements d'état Pro
   useEffect(() => {
     const event = new CustomEvent(PASSWORD_LIMIT_EVENT, {
       detail: {
@@ -160,7 +151,6 @@ export const PurchaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     window.dispatchEvent(event);
   }, [isProUser]);
 
-  // Écouter les mises à jour du nombre de mots de passe
   useEffect(() => {
     const handlePasswordCountUpdate = (event: CustomEvent) => {
       setCurrentPasswordCount(event.detail.count);
@@ -172,7 +162,6 @@ export const PurchaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
   }, []);
 
-  // Mettre à jour le prix lorsque la langue change
   useEffect(() => {
     setCurrentPrice({
       priceString: language === 'en' ? PRICE_DISPLAY_EN : PRICE_DISPLAY,
@@ -181,12 +170,10 @@ export const PurchaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     });
   }, [language]);
 
-  // Initialiser et vérifier le statut d'abonnement
   const initializePurchases = async () => {
     try {
       setIsLoading(true);
       
-      // Vérifier si nous sommes sur une plateforme native
       try {
         const isNative = Capacitor.isNativePlatform();
         setIsNativePlatform(isNative);
@@ -195,14 +182,12 @@ export const PurchaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setIsNativePlatform(false);
       }
       
-      // Vérifier le statut d'abonnement, que ce soit web ou natif
       const hasPurchasedLocally = localStorage.getItem('locky_pro_purchased') === 'true';
       
       if (hasPurchasedLocally) {
         setIsProUser(true);
       }
       
-      // Si l'utilisateur est authentifié ET le backend est activé, vérifier avec le backend
       if (masterPassword && BACKEND_ENABLED) {
         try {
           const response = await fetch(`${STRIPE_VERIFY_URL}?user_id=${encodeURIComponent(masterPassword)}`, {
@@ -240,43 +225,36 @@ export const PurchaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  // Acheter l'abonnement Pro via Stripe
   const purchaseProViaStripe = async (): Promise<boolean> => {
     try {
       setIsLoading(true);
       
-      // Vérifier si l'utilisateur est authentifié
       if (!masterPassword) {
         toast.error(t('purchase.login.required') || 'Vous devez être connecté pour effectuer cet achat');
         setIsLoading(false);
         return false;
       }
       
-      // Si le backend n'est pas activé, simuler un processus de paiement avec une page web
       if (!BACKEND_ENABLED) {
-        // Simuler l'ouverture d'une page de paiement
         if (isNativePlatform) {
           window.open('https://example.com/payment-simulation', '_system');
           toast.info(t('purchase.browser.redirect') || "Le paiement s'ouvrira dans votre navigateur. Revenez à l'application une fois terminé.");
           
-          // Marquer comme Pro après un délai (simuler le retour de paiement)
           setTimeout(() => {
             localStorage.setItem('locky_pro_purchased', 'true');
             setIsProUser(true);
             toast.success(t('purchase.success') || 'Achat réussi ! Vous avez maintenant un accès illimité.');
-          }, 5000); // Délai de 5 secondes pour simuler le processus de paiement
+          }, 5000);
           
           setIsLoading(false);
           return false;
         } else {
-          // Sur le web, rediriger vers une page puis revenir
           window.location.href = '/payment-success?session_id=test_session_id';
           setIsLoading(false);
           return false;
         }
       }
       
-      // Interface avec votre backend pour créer une session Stripe
       const response = await fetch(STRIPE_API_URL, {
         method: 'POST',
         headers: {
@@ -298,7 +276,6 @@ export const PurchaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         throw new Error(data.message || t('purchase.error') || 'Erreur lors de la création de la session de paiement');
       }
       
-      // Si sur mobile, ouvrir le navigateur pour le paiement
       if (isNativePlatform) {
         window.open(data.url, '_system');
         toast.info(t('purchase.browser.redirect') || "Le paiement s'ouvrira dans votre navigateur. Revenez à l'application une fois terminé.");
@@ -315,13 +292,11 @@ export const PurchaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return false;
     }
   };
-  
-  // Vérifier le statut du paiement Stripe (à appeler après retour de redirection)
+
   const checkStripePaymentStatus = async (sessionId: string) => {
     try {
       setIsLoading(true);
       
-      // Appel à votre backend pour vérifier le statut du paiement
       const response = await fetch(`${STRIPE_PAYMENT_URL}?session_id=${sessionId}`, {
         method: 'GET',
         headers: {
@@ -332,7 +307,6 @@ export const PurchaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const data = await response.json();
       
       if (data.success) {
-        // Marquer l'utilisateur comme ayant payé
         localStorage.setItem('locky_pro_purchased', 'true');
         setIsProUser(true);
         toast.success('Achat réussi ! Vous avez maintenant un accès illimité.');
@@ -344,12 +318,10 @@ export const PurchaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setIsLoading(false);
     }
   };
-  
-  // Vérifier si la page contient un paramètre de session après retour de Stripe
+
   useEffect(() => {
     const checkPaymentResult = () => {
       try {
-        // Vérifier si on est sur la page de succès de paiement
         if (window.location.pathname === '/payment-success') {
           const url = new URL(window.location.href);
           const sessionId = url.searchParams.get('session_id');
@@ -357,16 +329,12 @@ export const PurchaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           if (sessionId && BACKEND_ENABLED) {
             checkStripePaymentStatus(sessionId);
             
-            // Nettoyer l'URL
             window.history.replaceState({}, document.title, '/');
           } else if (sessionId) {
-            // Si le backend n'est pas activé mais qu'on a un sessionId, 
-            // simuler un succès de paiement pour les tests
             localStorage.setItem('locky_pro_purchased', 'true');
             setIsProUser(true);
             toast.success('Achat réussi ! Vous avez maintenant un accès illimité.');
             
-            // Nettoyer l'URL
             window.history.replaceState({}, document.title, '/');
           }
         }
@@ -378,12 +346,10 @@ export const PurchaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     checkPaymentResult();
   }, []);
 
-  // Restaurer les achats
   const restorePurchases = async (): Promise<boolean> => {
     try {
       setIsLoading(true);
       
-      // Vérifier si l'utilisateur est authentifié
       if (!masterPassword) {
         toast.error(t('restore.login.required') || 'Vous devez être connecté pour restaurer vos achats');
         setIsLoading(false);
@@ -392,9 +358,7 @@ export const PurchaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       
       toast.info(t('restore.loading') || 'Vérification de vos achats en cours...');
       
-      // Si le backend n'est pas activé, simuler un succès pour les tests
       if (!BACKEND_ENABLED) {
-        // Attendre un peu pour simuler l'appel réseau
         await new Promise(resolve => setTimeout(resolve, 1000));
         localStorage.setItem('locky_pro_purchased', 'true');
         setIsProUser(true);
@@ -403,7 +367,6 @@ export const PurchaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return true;
       }
       
-      // Vérifier avec le serveur le statut réel de l'abonnement
       const response = await fetch(`${STRIPE_VERIFY_URL}?user_id=${encodeURIComponent(masterPassword)}`, {
         method: 'GET',
         headers: {
@@ -414,14 +377,12 @@ export const PurchaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const data = await response.json();
       
       if (response.ok && data.active) {
-        // Mettre à jour le statut Pro et le stockage local
         setIsProUser(true);
         localStorage.setItem('locky_pro_purchased', 'true');
         toast.success(t('restore.success') || 'Vos achats ont été restaurés avec succès !');
         setIsLoading(false);
         return true;
       } else {
-        // L'utilisateur n'a pas d'abonnement actif
         localStorage.removeItem('locky_pro_purchased');
         setIsProUser(false);
         toast.info(t('restore.not.found') || 'Aucun achat trouvé associé à votre compte. Si vous avez déjà acheté Locky Pro, assurez-vous d\'utiliser le même compte qu\'au moment de l\'achat.');
@@ -436,13 +397,11 @@ export const PurchaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  // Ajouter un traitement d'erreur pour l'initialisation
   useEffect(() => {
     console.log("PurchaseProvider: Démarrage de l'initialisation");
     try {
       initializePurchases().catch(error => {
         console.error('Erreur lors de l\'initialisation des achats:', error);
-        // Assurer que isLoading est mis à false même en cas d'erreur
         setIsLoading(false);
       });
     } catch (error) {
