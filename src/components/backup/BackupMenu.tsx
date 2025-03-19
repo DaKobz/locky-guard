@@ -17,7 +17,7 @@ import { useNavigate } from "react-router-dom";
 
 const BackupMenu: React.FC = () => {
   const { t } = useLanguage();
-  const { passwords } = usePasswords();
+  const { passwords, restorePasswords } = usePasswords();
   const { masterPassword } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
@@ -94,10 +94,12 @@ const BackupMenu: React.FC = () => {
             // Decrypt the data (mock decryption)
             const data = atob(encryptedData);
             // Parse the JSON data
-            JSON.parse(data); // Just to validate
+            const parsedData = JSON.parse(data);
+            
+            // Actually restore the passwords
+            restorePasswords(parsedData);
             
             toast.success(t("restore.local.success"));
-            // Here we would actually restore the passwords
           } catch (error) {
             console.error("Local restore failed:", error);
             toast.error(t("restore.local.error"));

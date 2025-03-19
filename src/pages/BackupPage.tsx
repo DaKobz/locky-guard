@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 
 const BackupPage = () => {
   const { t } = useLanguage();
-  const { passwords } = usePasswordContext();
+  const { passwords, restorePasswords } = usePasswordContext();
   const { masterPassword, login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [enteredPassword, setEnteredPassword] = useState("");
@@ -151,8 +151,9 @@ const BackupPage = () => {
             // Valider que c'est un JSON valide
             const parsedData = JSON.parse(decryptedData);
             
-            // Ici, vous implémenteriez la restauration réelle des mots de passe
-            // Pour l'instant, nous affichons juste un message de succès
+            // Actually restore the passwords using the context function
+            restorePasswords(parsedData);
+            
             toast.success(t("restore.local.success"));
           } catch (decryptError) {
             console.error("Decryption error:", decryptError);
@@ -196,7 +197,9 @@ const BackupPage = () => {
                 // Valider que c'est un JSON valide
                 const parsedData = JSON.parse(decryptedData);
                 
-                // Ici, vous implémenteriez la restauration réelle des mots de passe
+                // Actually restore the passwords using the context function
+                restorePasswords(parsedData);
+                
                 toast.success(t("restore.local.success"));
               } catch (decryptError) {
                 console.error("Decryption error:", decryptError);

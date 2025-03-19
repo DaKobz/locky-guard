@@ -25,6 +25,7 @@ interface PasswordContextProps {
   ) => string;
   getRemainingPasswordCount: () => number;
   isLimitReached: () => boolean;
+  restorePasswords: (passwords: PasswordEntry[]) => void;
 }
 
 const PasswordContext = createContext<PasswordContextProps | undefined>(undefined);
@@ -162,6 +163,19 @@ export const PasswordProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return passwords.length >= currentLimit;
   };
 
+  // New function to restore passwords from a backup
+  const restorePasswords = (restoredPasswords: PasswordEntry[]) => {
+    // Check if we're not Pro and trying to restore more passwords than allowed
+    if (!isUserPro && restoredPasswords.length > FREE_USER_PASSWORD_LIMIT) {
+      toast.error(t("restore.limit.error") || "You need to upgrade to Pro to restore more than 3 passwords");
+      return;
+    }
+    
+    // Replace the current passwords with the restored ones
+    setPasswords(restoredPasswords);
+    toast.success(t("restore.success") || "Passwords successfully restored");
+  };
+
   return (
     <PasswordContext.Provider
       value={{
@@ -173,6 +187,7 @@ export const PasswordProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         generatePassword,
         getRemainingPasswordCount,
         isLimitReached,
+        restorePasswords,
       }}
     >
       {children}
