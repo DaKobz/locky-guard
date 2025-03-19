@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { PasswordEntry, PasswordCategory } from "@/types/password";
@@ -163,7 +164,7 @@ export const PasswordProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return passwords.length >= currentLimit;
   };
 
-  // New function to restore passwords from a backup
+  // Function to restore passwords from a backup with date conversion
   const restorePasswords = (restoredPasswords: PasswordEntry[]) => {
     // Check if we're not Pro and trying to restore more passwords than allowed
     if (!isUserPro && restoredPasswords.length > FREE_USER_PASSWORD_LIMIT) {
@@ -171,8 +172,19 @@ export const PasswordProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return;
     }
     
-    // Replace the current passwords with the restored ones
-    setPasswords(restoredPasswords);
+    // Ensure all dates are properly converted to Date objects
+    const processedPasswords = restoredPasswords.map(password => ({
+      ...password,
+      createdAt: password.createdAt instanceof Date ? 
+        password.createdAt : 
+        new Date(password.createdAt || Date.now()),
+      updatedAt: password.updatedAt instanceof Date ? 
+        password.updatedAt : 
+        new Date(password.updatedAt || Date.now())
+    }));
+    
+    // Replace the current passwords with the processed ones
+    setPasswords(processedPasswords);
     toast.success(t("restore.success") || "Passwords successfully restored");
   };
 
