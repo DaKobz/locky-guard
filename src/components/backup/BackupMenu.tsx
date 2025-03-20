@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePasswords } from "@/context/PasswordContext";
@@ -38,28 +39,33 @@ const BackupMenu: React.FC = () => {
       const encryptedData = CryptoJS.AES.encrypt(data, masterPassword).toString();
       
       if (Capacitor.isNativePlatform()) {
-        // Use the FileSaver plugin for native platforms
-        import('@capacitor/core').then(async ({ Plugins }) => {
-          const FileSaver = Plugins.FileSaver;
-          if (FileSaver) {
-            try {
-              const result = await FileSaver.saveFile({
-                fileName: `password-backup-${new Date().toISOString().slice(0, 10)}.pwe`,
-                fileContent: encryptedData,
-                mimeType: "application/octet-stream"
-              });
+        // Fix: Use direct import for FileSaver plugin in native environment
+        const FileSaverPlugin = (Capacitor as any).Plugins.FileSaver;
+        if (FileSaverPlugin) {
+          try {
+            FileSaverPlugin.saveFile({
+              fileName: `password-backup-${new Date().toISOString().slice(0, 10)}.pwe`,
+              fileContent: encryptedData,
+              mimeType: "application/octet-stream"
+            }).then((result: any) => {
               if (result.success) {
                 toast.success(t("backup.local.success"));
               }
-            } catch (err) {
+              setIsLoading(false);
+            }).catch((err: any) => {
               console.error("Native backup failed:", err);
               toast.error(t("backup.local.error"));
-            }
-          } else {
-            toast.error("FileSaver plugin not available");
+              setIsLoading(false);
+            });
+          } catch (err) {
+            console.error("Native backup failed:", err);
+            toast.error(t("backup.local.error"));
+            setIsLoading(false);
           }
+        } else {
+          toast.error("FileSaver plugin not available");
           setIsLoading(false);
-        });
+        }
       } else {
         // Web browser implementation
         const blob = new Blob([encryptedData], { type: "application/octet-stream" });
@@ -109,27 +115,33 @@ const BackupMenu: React.FC = () => {
     
     if (Capacitor.isNativePlatform()) {
       try {
-        // Pour les plateformes natives, utiliser le FileSaver plugin
-        const result = await window.FileSaver.openFile({
+        // Fix: Use direct access to FileSaver plugin
+        const FileSaverPlugin = (Capacitor as any).Plugins.FileSaver;
+        
+        if (!FileSaverPlugin) {
+          throw new Error("FileSaver plugin not available");
+        }
+        
+        const result = await FileSaverPlugin.openFile({
           mimeType: "application/octet-stream",
           extensions: ["pwe"]
         });
         
         if (result && result.path) {
           try {
-            // Utiliser notre FileReader plugin pour lire le fichier
+            // Fix: Use FileReader plugin instance directly without constructing
             const fileContent = await FileReader.readFile({ path: result.path });
             
             if (fileContent && fileContent.data) {
               try {
-                // Déchiffrer avec le mot de passe maître (qui est disponible car nous vérifions au début)
+                // Decrypt with the master password (which is available because we check at the beginning)
                 const decryptedData = CryptoJS.AES.decrypt(fileContent.data, masterPassword).toString(CryptoJS.enc.Utf8);
                 
                 if (!decryptedData) {
                   throw new Error("Decryption failed");
                 }
                 
-                // Valider que c'est un JSON valide
+                // Validate that it's valid JSON
                 const parsedData = JSON.parse(decryptedData);
                 
                 // Restore passwords
@@ -149,7 +161,9 @@ const BackupMenu: React.FC = () => {
         }
       } catch (error) {
         console.error("Native restore failed:", error);
-        toast.error(t("restore.local.error"));
+        if (error.message !== "File opening cancelled by user") {
+          toast.error(t("restore.local.error"));
+        }
       } finally {
         setIsLoading(false);
       }

@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePasswords } from "@/context/PasswordContext";
@@ -119,7 +120,8 @@ const BackupPage = () => {
 
     if (Capacitor.isNativePlatform()) {
       try {
-        const Plugins = (window as any).Capacitor.Plugins;
+        // Fix: Use Capacitor Plugins directly
+        const Plugins = (Capacitor as any).Plugins;
         if (Plugins.FileSaver) {
           try {
             const result = await Plugins.FileSaver.openFile({
@@ -129,6 +131,7 @@ const BackupPage = () => {
             
             if (result && result.path) {
               try {
+                // Fix: Use FileReader plugin instance directly without constructing
                 const fileContent = await FileReader.readFile({ path: result.path });
                 
                 if (fileContent && fileContent.data) {

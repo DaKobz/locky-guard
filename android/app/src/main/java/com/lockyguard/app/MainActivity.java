@@ -1,3 +1,4 @@
+
 package com.lockyguard.app;
 
 import com.getcapacitor.BridgeActivity;
@@ -14,16 +15,20 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Activer les logs pour le WebView si en mode debug
+        // Enable WebView debugging in debug mode
         WebView.setWebContentsDebuggingEnabled(true);
         
-        // Enregistrement du plugin
+        // Register plugins
         try {
-            // Enregistrement du plugin FileSaver
+            // Register FileSaver plugin
             this.registerPlugin(FileSaverPlugin.class);
-            Log.d(TAG, "Plugin FileSaver enregistré avec succès");
+            Log.d(TAG, "FileSaver plugin registered successfully");
+            
+            // Register FileReader plugin
+            this.registerPlugin(FileReaderPlugin.class);
+            Log.d(TAG, "FileReader plugin registered successfully");
         } catch (Exception e) {
-            Log.e(TAG, "Erreur lors de l'enregistrement du plugin FileSaver", e);
+            Log.e(TAG, "Error registering plugins", e);
         }
     }
 }
