@@ -129,12 +129,12 @@ const BackupMenu: React.FC = () => {
         
         if (result && result.path) {
           try {
-            // Fix: Use FileReader plugin instance directly without constructing
+            // Fix: Use FileReader directly without trying to construct it
             const fileContent = await FileReader.readFile({ path: result.path });
             
             if (fileContent && fileContent.data) {
               try {
-                // Decrypt with the master password (which is available because we check at the beginning)
+                // Decrypt with the master password
                 const decryptedData = CryptoJS.AES.decrypt(fileContent.data, masterPassword).toString(CryptoJS.enc.Utf8);
                 
                 if (!decryptedData) {

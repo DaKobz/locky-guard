@@ -131,7 +131,7 @@ const BackupPage = () => {
             
             if (result && result.path) {
               try {
-                // Fix: Use FileReader plugin instance directly without constructing
+                // Fix: Use FileReader directly without trying to construct it
                 const fileContent = await FileReader.readFile({ path: result.path });
                 
                 if (fileContent && fileContent.data) {
