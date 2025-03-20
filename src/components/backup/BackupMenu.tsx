@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePasswords } from "@/context/PasswordContext";
@@ -14,6 +13,9 @@ import { Button } from "@/components/ui/button";
 import { Save, Download, HardDrive, CloudUpload } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { Capacitor } from '@capacitor/core';
+import FileReader from "@/plugins/FileReaderPlugin";
+import CryptoJS from 'crypto-js';
 
 const BackupMenu: React.FC = () => {
   const { t } = useLanguage();
@@ -31,27 +33,52 @@ const BackupMenu: React.FC = () => {
 
     setIsLoading(true);
     try {
-      // Create a JSON string and encrypt it (mock encryption)
+      // Create a JSON string and encrypt it using proper encryption
       const data = JSON.stringify(passwords);
-      const encryptedData = btoa(data); // Simple Base64 encoding (not actual encryption)
+      const encryptedData = CryptoJS.AES.encrypt(data, masterPassword).toString();
       
-      // Create a Blob with the data
-      const blob = new Blob([encryptedData], { type: "application/octet-stream" });
-      const url = URL.createObjectURL(blob);
-      
-      // Create a link element and trigger download
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `password-backup-${new Date().toISOString().slice(0, 10)}.pwe`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      toast.success(t("backup.local.success"));
+      if (Capacitor.isNativePlatform()) {
+        // Use the FileSaver plugin for native platforms
+        import('@capacitor/core').then(async ({ Plugins }) => {
+          const FileSaver = Plugins.FileSaver;
+          if (FileSaver) {
+            try {
+              const result = await FileSaver.saveFile({
+                fileName: `password-backup-${new Date().toISOString().slice(0, 10)}.pwe`,
+                fileContent: encryptedData,
+                mimeType: "application/octet-stream"
+              });
+              if (result.success) {
+                toast.success(t("backup.local.success"));
+              }
+            } catch (err) {
+              console.error("Native backup failed:", err);
+              toast.error(t("backup.local.error"));
+            }
+          } else {
+            toast.error("FileSaver plugin not available");
+          }
+          setIsLoading(false);
+        });
+      } else {
+        // Web browser implementation
+        const blob = new Blob([encryptedData], { type: "application/octet-stream" });
+        const url = URL.createObjectURL(blob);
+        
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `password-backup-${new Date().toISOString().slice(0, 10)}.pwe`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        toast.success(t("backup.local.success"));
+        setIsLoading(false);
+      }
     } catch (error) {
       console.error("Local backup failed:", error);
       toast.error(t("backup.local.error"));
-    } finally {
       setIsLoading(false);
     }
   };
@@ -71,53 +98,115 @@ const BackupMenu: React.FC = () => {
     }, 1000);
   };
 
-  const handleLocalRestore = () => {
+  const handleLocalRestore = async () => {
     if (!masterPassword) {
       toast.error(t("backup.master_password_required"));
       navigate("/backup"); // Redirect to the full backup page for better handling
       return;
     }
     
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".pwe";
+    setIsLoading(true);
     
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        setIsLoading(true);
-        const reader = new FileReader();
+    if (Capacitor.isNativePlatform()) {
+      try {
+        // Pour les plateformes natives, utiliser le FileSaver plugin
+        const result = await window.FileSaver.openFile({
+          mimeType: "application/octet-stream",
+          extensions: ["pwe"]
+        });
         
-        reader.onload = (event) => {
+        if (result && result.path) {
           try {
-            const encryptedData = event.target?.result as string;
-            // Decrypt the data (mock decryption)
-            const data = atob(encryptedData);
-            // Parse the JSON data
-            const parsedData = JSON.parse(data);
+            // Utiliser notre FileReader plugin pour lire le fichier
+            const fileContent = await FileReader.readFile({ path: result.path });
             
-            // Actually restore the passwords
-            restorePasswords(parsedData);
-            
-            toast.success(t("restore.local.success"));
-          } catch (error) {
-            console.error("Local restore failed:", error);
+            if (fileContent && fileContent.data) {
+              try {
+                // Déchiffrer avec le mot de passe maître (qui est disponible car nous vérifions au début)
+                const decryptedData = CryptoJS.AES.decrypt(fileContent.data, masterPassword).toString(CryptoJS.enc.Utf8);
+                
+                if (!decryptedData) {
+                  throw new Error("Decryption failed");
+                }
+                
+                // Valider que c'est un JSON valide
+                const parsedData = JSON.parse(decryptedData);
+                
+                // Restore passwords
+                restorePasswords(parsedData);
+                toast.success(t("restore.local.success"));
+              } catch (decryptError) {
+                console.error("Decryption error:", decryptError);
+                toast.error(t("restore.wrong_master_password"));
+              }
+            } else {
+              toast.error(t("restore.local.error"));
+            }
+          } catch (readError) {
+            console.error("File reading error:", readError);
             toast.error(t("restore.local.error"));
-          } finally {
-            setIsLoading(false);
           }
-        };
-        
-        reader.onerror = () => {
-          toast.error(t("restore.local.error"));
-          setIsLoading(false);
-        };
-        
-        reader.readAsText(file);
+        }
+      } catch (error) {
+        console.error("Native restore failed:", error);
+        toast.error(t("restore.local.error"));
+      } finally {
+        setIsLoading(false);
       }
-    };
-    
-    input.click();
+    } else {
+      // Implémentation pour navigateur web
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = ".pwe";
+      
+      input.onchange = (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (file) {
+          const reader = new FileReader();
+          
+          reader.onload = (event) => {
+            try {
+              const encryptedData = event.target?.result as string;
+              
+              try {
+                // Tenter de déchiffrer avec le mot de passe maître (qui est disponible car nous vérifions au début)
+                const decryptedData = CryptoJS.AES.decrypt(encryptedData, masterPassword).toString(CryptoJS.enc.Utf8);
+                
+                if (!decryptedData) {
+                  throw new Error("Decryption failed");
+                }
+                
+                // Valider que c'est un JSON valide
+                const parsedData = JSON.parse(decryptedData);
+                
+                // Restore passwords
+                restorePasswords(parsedData);
+                toast.success(t("restore.local.success"));
+              } catch (decryptError) {
+                console.error("Decryption error:", decryptError);
+                toast.error(t("restore.wrong_master_password"));
+              }
+            } catch (error) {
+              console.error("Local restore failed:", error);
+              toast.error(t("restore.local.error"));
+            } finally {
+              setIsLoading(false);
+            }
+          };
+          
+          reader.onerror = () => {
+            toast.error(t("restore.local.error"));
+            setIsLoading(false);
+          };
+          
+          reader.readAsText(file);
+        } else {
+          setIsLoading(false);
+        }
+      };
+      
+      input.click();
+    }
   };
 
   const handleGoogleDriveRestore = () => {

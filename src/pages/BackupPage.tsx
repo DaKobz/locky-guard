@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePasswords } from "@/context/PasswordContext";
@@ -11,6 +10,8 @@ import CryptoJS from 'crypto-js';
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Capacitor } from '@capacitor/core';
+import FileReader from "@/plugins/FileReaderPlugin";
 
 const BackupPage = () => {
   const { t } = useLanguage();
@@ -40,7 +41,6 @@ const BackupPage = () => {
       return;
     }
 
-    // Use the confirmed password from login or the existing masterPassword
     const passwordToUse = masterPassword;
     
     if (!passwordToUse) {
@@ -50,18 +50,13 @@ const BackupPage = () => {
 
     setIsLoading(true);
     try {
-      // Créer une chaîne JSON des mots de passe
       const data = JSON.stringify(passwords);
       
-      // Chiffrer les données avec le mot de passe maître comme clé
       const encryptedData = CryptoJS.AES.encrypt(data, passwordToUse).toString();
       
-      // Créer un objet Blob avec les données chiffrées
       const blob = new Blob([encryptedData], { type: "application/octet-stream" });
       
-      // Utiliser l'API File System Access pour permettre à l'utilisateur de choisir l'emplacement
       if (window.showSaveFilePicker) {
-        // Navigateurs modernes avec File System Access API
         const saveFile = async () => {
           try {
             const fileHandle = await window.showSaveFilePicker({
@@ -89,7 +84,6 @@ const BackupPage = () => {
         
         saveFile();
       } else {
-        // Fallback pour les navigateurs qui ne supportent pas l'API File System Access
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
@@ -109,14 +103,13 @@ const BackupPage = () => {
     }
   };
 
-  const handleLocalRestore = () => {
+  const handleLocalRestore = async () => {
     if (!masterPassword && !isConfirmPasswordVisible) {
       setIsConfirmPasswordVisible(true);
       toast.error(t("backup.master_password_required"));
       return;
     }
 
-    // Use the confirmed password from login or the existing masterPassword
     const passwordToUse = masterPassword;
     
     if (!passwordToUse) {
@@ -124,105 +117,152 @@ const BackupPage = () => {
       return;
     }
 
-    // Utiliser l'API File System Access si disponible
-    if (window.showOpenFilePicker) {
-      const openFile = async () => {
-        setIsLoading(true);
-        try {
-          const [fileHandle] = await window.showOpenFilePicker({
-            types: [{
-              description: 'Locky Password Encrypted File',
-              accept: { 'application/octet-stream': ['.pwe'] }
-            }],
-            multiple: false
-          });
-          
-          const file = await fileHandle.getFile();
-          const encryptedData = await file.text();
-          
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const Plugins = (window as any).Capacitor.Plugins;
+        if (Plugins.FileSaver) {
           try {
-            // Tenter de déchiffrer avec le mot de passe maître
-            const decryptedData = CryptoJS.AES.decrypt(encryptedData, passwordToUse).toString(CryptoJS.enc.Utf8);
+            const result = await Plugins.FileSaver.openFile({
+              mimeType: "application/octet-stream",
+              extensions: ["pwe"]
+            });
             
-            if (!decryptedData) {
-              throw new Error("Decryption failed");
-            }
-            
-            // Valider que c'est un JSON valide
-            const parsedData = JSON.parse(decryptedData);
-            
-            // Actually restore the passwords using the context function
-            restorePasswords(parsedData);
-            
-            toast.success(t("restore.local.success"));
-          } catch (decryptError) {
-            console.error("Decryption error:", decryptError);
-            toast.error(t("restore.wrong_master_password"));
-          }
-        } catch (error) {
-          if (error.name !== 'AbortError') {
-            console.error("Open file error:", error);
-            toast.error(t("restore.local.error"));
-          }
-        } finally {
-          setIsLoading(false);
-        }
-      };
-      
-      openFile();
-    } else {
-      // Fallback pour les navigateurs qui ne supportent pas l'API File System Access
-      const input = document.createElement("input");
-      input.type = "file";
-      input.accept = ".pwe";
-      
-      input.onchange = (e) => {
-        const file = (e.target as HTMLInputElement).files?.[0];
-        if (file) {
-          setIsLoading(true);
-          const reader = new FileReader();
-          
-          reader.onload = (event) => {
-            try {
-              const encryptedData = event.target?.result as string;
-              
+            if (result && result.path) {
               try {
-                // Tenter de déchiffrer avec le mot de passe maître
-                const decryptedData = CryptoJS.AES.decrypt(encryptedData, passwordToUse).toString(CryptoJS.enc.Utf8);
+                const fileContent = await FileReader.readFile({ path: result.path });
                 
-                if (!decryptedData) {
-                  throw new Error("Decryption failed");
+                if (fileContent && fileContent.data) {
+                  try {
+                    const decryptedData = CryptoJS.AES.decrypt(fileContent.data, passwordToUse).toString(CryptoJS.enc.Utf8);
+                    
+                    if (!decryptedData) {
+                      throw new Error("Decryption failed");
+                    }
+                    
+                    const parsedData = JSON.parse(decryptedData);
+                    
+                    restorePasswords(parsedData);
+                    toast.success(t("restore.local.success"));
+                  } catch (decryptError) {
+                    console.error("Decryption error:", decryptError);
+                    toast.error(t("restore.wrong_master_password"));
+                  }
+                } else {
+                  toast.error(t("restore.local.error"));
                 }
-                
-                // Valider que c'est un JSON valide
-                const parsedData = JSON.parse(decryptedData);
-                
-                // Actually restore the passwords using the context function
-                restorePasswords(parsedData);
-                
-                toast.success(t("restore.local.success"));
-              } catch (decryptError) {
-                console.error("Decryption error:", decryptError);
-                toast.error(t("restore.wrong_master_password"));
+              } catch (readError) {
+                console.error("File reading error:", readError);
+                toast.error(t("restore.local.error"));
               }
-            } catch (error) {
-              console.error("Local restore failed:", error);
-              toast.error(t("restore.local.error"));
-            } finally {
-              setIsLoading(false);
             }
-          };
-          
-          reader.onerror = () => {
-            toast.error(t("restore.local.error"));
-            setIsLoading(false);
-          };
-          
-          reader.readAsText(file);
+          } catch (openError) {
+            if (openError.message !== "File opening cancelled by user") {
+              console.error("File opening error:", openError);
+              toast.error(t("restore.local.error"));
+            }
+          }
+        } else {
+          toast.error("FileSaver plugin not available");
         }
-      };
-      
-      input.click();
+      } catch (error) {
+        console.error("Native restore failed:", error);
+        toast.error(t("restore.local.error"));
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      if (window.showOpenFilePicker) {
+        const openFile = async () => {
+          setIsLoading(true);
+          try {
+            const [fileHandle] = await window.showOpenFilePicker({
+              types: [{
+                description: 'Locky Password Encrypted File',
+                accept: { 'application/octet-stream': ['.pwe'] }
+              }],
+              multiple: false
+            });
+            
+            const file = await fileHandle.getFile();
+            const encryptedData = await file.text();
+            
+            try {
+              const decryptedData = CryptoJS.AES.decrypt(encryptedData, passwordToUse).toString(CryptoJS.enc.Utf8);
+              
+              if (!decryptedData) {
+                throw new Error("Decryption failed");
+              }
+              
+              const parsedData = JSON.parse(decryptedData);
+              
+              restorePasswords(parsedData);
+              
+              toast.success(t("restore.local.success"));
+            } catch (decryptError) {
+              console.error("Decryption error:", decryptError);
+              toast.error(t("restore.wrong_master_password"));
+            }
+          } catch (error) {
+            if (error.name !== 'AbortError') {
+              console.error("Open file error:", error);
+              toast.error(t("restore.local.error"));
+            }
+          } finally {
+            setIsLoading(false);
+          }
+        };
+        
+        openFile();
+      } else {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = ".pwe";
+        
+        input.onchange = (e) => {
+          const file = (e.target as HTMLInputElement).files?.[0];
+          if (file) {
+            setIsLoading(true);
+            const reader = new FileReader();
+            
+            reader.onload = (event) => {
+              try {
+                const encryptedData = event.target?.result as string;
+                
+                try {
+                  const decryptedData = CryptoJS.AES.decrypt(encryptedData, passwordToUse).toString(CryptoJS.enc.Utf8);
+                  
+                  if (!decryptedData) {
+                    throw new Error("Decryption failed");
+                  }
+                  
+                  const parsedData = JSON.parse(decryptedData);
+                  
+                  restorePasswords(parsedData);
+                  
+                  toast.success(t("restore.local.success"));
+                } catch (decryptError) {
+                  console.error("Decryption error:", decryptError);
+                  toast.error(t("restore.wrong_master_password"));
+                }
+              } catch (error) {
+                console.error("Local restore failed:", error);
+                toast.error(t("restore.local.error"));
+              } finally {
+                setIsLoading(false);
+              }
+            };
+            
+            reader.onerror = () => {
+              toast.error(t("restore.local.error"));
+              setIsLoading(false);
+            };
+            
+            reader.readAsText(file);
+          }
+        };
+        
+        input.click();
+      }
     }
   };
 
@@ -234,7 +274,7 @@ const BackupPage = () => {
           {t("back")}
         </Button>
         <h1 className="text-2xl font-bold">{t("backup")}</h1>
-        <div className="w-10"></div> {/* Spacer for alignment */}
+        <div className="w-10"></div>
       </div>
       
       {isConfirmPasswordVisible ? (
@@ -266,7 +306,6 @@ const BackupPage = () => {
         </Card>
       ) : (
         <div className="grid gap-6">
-          {/* Local Backup */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -297,7 +336,6 @@ const BackupPage = () => {
             </CardContent>
           </Card>
           
-          {/* Security Note */}
           <Card className="bg-muted/50">
             <CardContent className="pt-6">
               <div className="flex items-start gap-4">
@@ -310,7 +348,6 @@ const BackupPage = () => {
             </CardContent>
           </Card>
           
-          {/* Encryption Note */}
           <Card className="bg-primary/5">
             <CardContent className="pt-6">
               <div className="flex items-start gap-4">
@@ -329,7 +366,6 @@ const BackupPage = () => {
 };
 
 const usePasswordContext = () => {
-  // Fix for the typo in the import; usePasswords is the correct hook
   return usePasswords();
 };
 
